@@ -40,12 +40,38 @@ def create_linear_system(odoms, observations, sigma_odom, sigma_observation,
     sqrt_inv_odom = np.linalg.inv(scipy.linalg.sqrtm(sigma_odom))
     sqrt_inv_obs = np.linalg.inv(scipy.linalg.sqrtm(sigma_observation))
 
-    # TODO: First fill in the prior to anchor the 1st pose at (0, 0)
 
+    # Variances for prior TODO@Shashwat: Check performance w/t other values
+    sigma_prior_x = 0.01
+    sigma_prior_y = 0.01
+
+    
+
+    # TODO: First fill in the prior to anchor the 1st pose at (0, 0)
+    A[0, 0] = 1/sigma_prior_x
+    A[1, 1] = 1/sigma_prior_y
+    b[:2]   = [0, 0]
+
+    Ai = np.array([[-1, 0 , 1, 0], 
+                   [ 0, -1, 0, 1]])
     # TODO: Then fill in odometry measurements
+    for i in range(n_odom):
+        row_idx  = 2 + 2*i
+        pose_idx = 2*i
+        
+        A[row_idx:row_idx + 2, pose_idx:pose_idx + 4] = sqrt_inv_obs @ Ai
+        b[row_idx:row_idx + 2] = sqrt_inv_odom @ odoms[i]
+
 
     # TODO: Then fill in landmark measurements
-
+    for i in range(n_obs):
+        row_idx  = 2 + n_odom + 2*i
+        pose_idx = int(observations[i, 0])*2
+        land_idx = 2*n_poses + int(observations[i, 1])*2
+        
+        A[row_idx:row_idx + 2, [pose_idx, pose_idx +1, land_idx, land_idx + 1]] = sqrt_inv_obs @ Ai
+        b[row_idx:row_idx + 2] = sqrt_inv_obs @ observations[i, 2:] 
+     
     return csr_matrix(A), b
 
 
