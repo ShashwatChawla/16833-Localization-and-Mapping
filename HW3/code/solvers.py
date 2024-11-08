@@ -9,6 +9,9 @@ from sparseqr import rz, permutation_vector_to_matrix, solve as qrsolve
 import numpy as np
 import matplotlib.pyplot as plt
 
+from scipy.sparse import csr_matrix
+
+
 
 def solve_default(A, b):
     from scipy.sparse.linalg import spsolve
@@ -18,44 +21,59 @@ def solve_default(A, b):
 
 def solve_pinv(A, b):
     # TODO: return x s.t. Ax = b using pseudo inverse.
-    N = A.shape[1]
-    x = np.zeros((N, ))
+    
+    # Formula x = (A^T A)^-1 A^T b
+    pseudo_inverse = inv(A.T @ A) 
+    x = pseudo_inverse @ A.T @ b
     return x, None
 
 
 def solve_lu(A, b):
     # TODO: return x, U s.t. Ax = b, and A = LU with LU decomposition.
     # https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.splu.html
-    N = A.shape[1]
-    x = np.zeros((N, ))
-    U = eye(N)
-    return x, U
+    
+    lu = splu(A.T @ A, permc_spec='NATURAL') 
+    # Backward Substitution U x = y & Forward Substution L y = A^T B 
+    # TODO@Shashwat: Validate if solve() performs both
+    x = lu.solve(A.T @ b)
+    
+    return x, lu.U
 
 
 def solve_lu_colamd(A, b):
     # TODO: return x, U s.t. Ax = b, and Permutation_rows A Permutation_cols = LU with reordered LU decomposition.
     # https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.splu.html
-    N = A.shape[1]
-    x = np.zeros((N, ))
-    U = eye(N)
-    return x, U
+    
+    lu = splu(A.T @ A, permc_spec='COLAMD') 
+    # Backward Substitution U x = y & Forward Substution L y = A^T B 
+    # TODO@Shashwat: Validate if solve() performs both
+    x = lu.solve(A.T @ b)
+    
+    return x, lu.U
 
 
 def solve_qr(A, b):
     # TODO: return x, R s.t. Ax = b, and |Ax - b|^2 = |Rx - d|^2 + |e|^2
     # https://github.com/theNded/PySPQR
-    N = A.shape[1]
-    x = np.zeros((N, ))
-    R = eye(N)
+    
+    z, R, E, rank = rz(A, b, permc_spec='NATURAL')
+    # R is upper triangular (CSR format)
+    x = spsolve_triangular(csr_matrix(R), z.flatten(), lower=False)
     return x, R
 
 
 def solve_qr_colamd(A, b):
     # TODO: return x, R s.t. Ax = b, and |Ax - b|^2 = |R E^T x - d|^2 + |e|^2, with reordered QR decomposition (E is the permutation matrix).
     # https://github.com/theNded/PySPQR
-    N = A.shape[1]
-    x = np.zeros((N, ))
-    R = eye(N)
+    
+    z, R, E, rank = rz(A, b, permc_spec='COLAMD')
+    
+    E = permutation_vector_to_matrix(E)
+    # R is upper triangular (CSR format)
+    x = spsolve_triangular(csr_matrix(R), z.flatten(), lower=False)
+    
+    # Reorder X using E(Permutation matrix)
+    x = E @ x 
     return x, R
 
 
