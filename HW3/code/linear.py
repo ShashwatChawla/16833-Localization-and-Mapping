@@ -42,8 +42,8 @@ def create_linear_system(odoms, observations, sigma_odom, sigma_observation,
 
 
     # Variances for prior TODO@Shashwat: Check performance w/t other values
-    sigma_prior_x = 0.01
-    sigma_prior_y = 0.01
+    sigma_prior_x = 0.1
+    sigma_prior_y = 0.1
 
     
 
@@ -62,10 +62,9 @@ def create_linear_system(odoms, observations, sigma_odom, sigma_observation,
         A[row_idx:row_idx + 2, pose_idx:pose_idx + 4] = sqrt_inv_obs @ Ai
         b[row_idx:row_idx + 2] = sqrt_inv_odom @ odoms[i]
 
-
     # TODO: Then fill in landmark measurements
     for i in range(n_obs):
-        row_idx  = 2 + n_odom + 2*i
+        row_idx  = 2 + 2*n_odom + 2*i
         pose_idx = int(observations[i, 0])*2
         land_idx = 2*n_poses + int(observations[i, 1])*2
         
