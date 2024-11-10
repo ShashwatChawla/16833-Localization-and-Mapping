@@ -28,15 +28,40 @@ def solve_pinv(A, b):
     return x, None
 
 
+# Forward substitution to solve L * y = b
+def forward_substitution(L, b):
+    y = np.zeros_like(b)
+    
+    for i in range(len(b)):
+        y[i] = b[i] - np.dot(L[i, :i].todense(), y[:i]) 
+    return y
+
+# Backward substitution to solve U * x = y
+def backward_substitution(U, y):
+    
+    x = np.zeros_like(y)
+    
+    for i in range(len(y)-1, -1, -1):
+        x[i] = (y[i] - np.dot(U[i, i+1:].todense(), x[i+1:])) / U[i, i]
+    
+    return x
+
 def solve_lu(A, b):
     # TODO: return x, U s.t. Ax = b, and A = LU with LU decomposition.
     # https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.linalg.splu.html
     
     lu = splu(A.T @ A, permc_spec='NATURAL') 
-    # Backward Substitution U x = y & Forward Substution L y = A^T B 
-    # TODO@Shashwat: Validate if solve() performs both
-    x = lu.solve(A.T @ b)
     
+    # Use this internal function for faster convergence
+    # x = lu.solve(A.T @ b)
+    
+        
+    # Forward substitution
+    y = forward_substitution(lu.L, A.T @ b)
+    
+    # Backward substitution
+    x = backward_substitution(lu.U, y)
+
     return x, lu.U
 
 

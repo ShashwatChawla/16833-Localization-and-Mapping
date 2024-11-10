@@ -97,6 +97,11 @@ if __name__ == '__main__':
     # Plot gt trajectory and landmarks for a sanity check.
     gt_traj = data['gt_traj']
     gt_landmarks = data['gt_landmarks']
+    
+    print(f"File :{args.data}")
+    print(f"Trajectory Samples :{len(gt_traj)}")
+    print(f"Trajectory Landmark: {len(gt_landmarks)}")
+    
     plt.plot(gt_traj[:, 0], gt_traj[:, 1], 'b-', label='gt trajectory')
     plt.scatter(gt_landmarks[:, 0],
                 gt_landmarks[:, 1],
