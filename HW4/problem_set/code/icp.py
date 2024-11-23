@@ -49,6 +49,10 @@ def find_projective_correspondence(source_points,
 
     # TODO: first filter: valid projection
     mask = np.zeros_like(target_us).astype(bool)
+    
+    # Basic condition to check-bounds & depth > 0 
+    mask = (0 <= target_us) & (target_us < w) & (0 <= target_vs) & (target_vs < h)
+    mask &= (target_ds > 0)
     # End of TODO
 
     source_indices = source_indices[mask]
@@ -58,6 +62,23 @@ def find_projective_correspondence(source_points,
 
     # TODO: second filter: apply distance threshold
     mask = np.zeros_like(target_us).astype(bool)
+
+    # Get 3D points and their surface normals
+    target_points_q  = target_vertex_map[target_us, target_vs]
+    target_normals_q = target_normal_map[target_us, target_vs]
+
+    # Apply distance thresholding (row-wise):
+    delta_distances = np.linalg.norm(T_source_points - target_points_q, axis=1) 
+    mask = (delta_distances < dist_diff)
+
+    # TODO(@Shashwat): Is this necessary for the assingment: 
+    # Apply angle-thrsholding (.dot < cos(th))
+    cosine_angles = np.sum(source_normals * target_normals_q, axis=1) / (
+    np.linalg.norm(source_normals, axis=1) * np.linalg.norm(target_normals_q, axis=1)
+    )
+
+    mask &= np.arccos(cosine_angles) < 0.1
+
     # End of TODO
 
     source_indices = source_indices[mask]
