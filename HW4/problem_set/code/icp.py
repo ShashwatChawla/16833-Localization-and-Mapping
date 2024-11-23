@@ -51,8 +51,9 @@ def find_projective_correspondence(source_points,
     mask = np.zeros_like(target_us).astype(bool)
     
     # Basic condition to check-bounds & depth > 0 
-    mask = (0 <= target_us) & (target_us < w) & (0 <= target_vs) & (target_vs < h)
-    mask &= (target_ds > 0)
+    mask = (0 <= target_us) & (target_us < w) & \
+           (0 <= target_vs) & (target_vs < h) & \
+           (target_ds > 0)
     # End of TODO
 
     source_indices = source_indices[mask]
@@ -64,8 +65,8 @@ def find_projective_correspondence(source_points,
     mask = np.zeros_like(target_us).astype(bool)
 
     # Get 3D points and their surface normals
-    target_points_q  = target_vertex_map[target_us, target_vs]
-    target_normals_q = target_normal_map[target_us, target_vs]
+    target_points_q  = target_vertex_map[target_vs, target_us]
+    target_normals_q = target_normal_map[target_vs, target_us]
 
     # Apply distance thresholding (row-wise):
     delta_distances = np.linalg.norm(T_source_points - target_points_q, axis=1) 
@@ -73,11 +74,11 @@ def find_projective_correspondence(source_points,
 
     # TODO(@Shashwat): Is this necessary for the assingment: 
     # Apply angle-thrsholding (.dot < cos(th))
-    cosine_angles = np.sum(source_normals * target_normals_q, axis=1) / (
-    np.linalg.norm(source_normals, axis=1) * np.linalg.norm(target_normals_q, axis=1)
-    )
+    # cosine_angles = np.sum(source_normals * target_normals_q, axis=1) / (
+    # np.linalg.norm(source_normals, axis=1) * np.linalg.norm(target_normals_q, axis=1)
+    # )
 
-    mask &= np.arccos(cosine_angles) < 0.1
+    # mask &= np.arccos(cosine_angles) < 0.1
 
     # End of TODO
 
@@ -102,10 +103,24 @@ def build_linear_system(source_points, target_points, target_normals, T):
     A = np.zeros((M, 6))
     b = np.zeros((M, ))
 
+    
     # TODO: build the linear system
+    for idx in range(M):
+        n_qx, n_qy, n_qz = n_q[idx]
+        p_prime_x, p_prime_y, p_prime_z = p_prime[idx]
+
+        # Fill A
+        A[idx, :] = np.array([n_qz*p_prime_y - n_qy*p_prime_z, 
+                              n_qx*p_prime_z - n_qz*p_prime_x, 
+                              n_qy*p_prime_x - n_qx*p_prime_y,
+                              n_qx,
+                              n_qy, 
+                              n_qz])
+        # Fill B
+        b[idx] = np.dot(n_q[idx].T, (p_prime[idx] - q[idx]))
     # End of TODO
 
-    return A, b
+    return A, -b
 
 
 def pose2transformation(delta):
@@ -143,6 +158,8 @@ def pose2transformation(delta):
     return T
 
 
+from scipy.sparse.linalg import splu
+
 def solve(A, b):
     '''
     \param A (6, 6) matrix in the LU formulation, or (N, 6) in the QR formulation
@@ -150,8 +167,9 @@ def solve(A, b):
     \return delta (6, ) vector by solving the linear system. You may directly use dense solvers from numpy.
     '''
     # TODO: write your relevant solver
-    return np.zeros((6, ))
-
+    lu = splu(A.T @ A, permc_spec='COLAMD') 
+    x = lu.solve(A.T @ b)
+    return x
 
 def icp(source_points,
         source_normals,
