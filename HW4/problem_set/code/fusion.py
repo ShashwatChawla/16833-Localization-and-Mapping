@@ -35,6 +35,33 @@ class Map:
         \param t translation from camera (input) to world (map), (3, )
         \return None, update map properties IN PLACE
         '''
+
+        
+        # Reference pts in map
+        reference_pts = self.points[indices]
+        reference_normals = self.normals[indices]
+        reference_wts = self.weights[indices]
+        reference_colors = self.colors[indices]
+
+        # Transform current pts
+        transformed_pts = (np.dot(R, points.T) + t).T
+        # Tranformed normals (its just a Rotation vec)
+        transformed_normals = np.dot(R, normals.T).T 
+        
+        # Merge points (use weighted avg approach)
+        weighted_pts = (reference_pts*reference_wts + transformed_pts)/(1 + reference_wts)
+
+        weighted_normals = (reference_normals*reference_wts + transformed_normals)/(1 + reference_wts)
+        weighted_normals /= np.linalg.norm(weighted_normals, axis=1)[:, None]
+
+        weighted_colors = (reference_colors*reference_wts + colors)/(1 + reference_wts)
+
+        # Update Map 
+        self.points[indices]  = weighted_pts
+        self.normals[indices] = weighted_normals
+        self.colors[indices]  = weighted_colors
+        self.weights[indices] = reference_wts + 1
+
         pass
 
     def add(self, points, normals, colors, R, t):
@@ -48,6 +75,18 @@ class Map:
         \param t translation from camera (input) to world (map), (3, )
         \return None, update map properties by concatenation
         '''
+
+        # Transformed points
+        transformed_pts = (np.dot(R, points.T) + t).T
+        # Tranformed normals (its just a Rotation vec)
+        transformed_normals = np.dot(R, normals.T).T 
+
+        # Concatinate to the current map
+        self.points = np.vstack((self.points, transformed_pts))
+        self.normals = np.vstack((self.normals, transformed_normals))
+        self.colors = np.vstack((self.colors, colors))
+        self.weights = np.vstack((self.weights, np.ones((points.shape[0], 1))))  # New pts weights = 1
+
         pass
 
     def filter_pass1(self, us, vs, ds, h, w):
@@ -61,6 +100,10 @@ class Map:
         \param w Width of the image projected to
         \return mask (N, 1) in bool indicating the valid coordinates
         '''
+        mask = (0 <= us) & (us < w) & \
+               (0 <= vs) & (vs < h) & \
+               (ds > 0)
+        return mask
         return np.zeros_like(us)
 
     def filter_pass2(self, points, normals, input_points, input_normals,
@@ -76,6 +119,20 @@ class Map:
         \param angle_diff Angle difference threshold to filter correspondences by normals
         \return mask (N, 1) in bool indicating the valid correspondences
         '''
+
+
+        # Mask out based on distance 
+        delta_distances = np.linalg.norm(points - input_points, axis=1)
+        dist_mask = (delta_distances < dist_diff)
+
+        # Mask out based on angle-diff (cosine): cos(theta) = (p.q)/(|p|*|q|)
+        vec_dot = np.sum(normals * input_normals, axis=1)
+        vec_mag = (np.linalg.norm(normals, axis=1)*np.linalg.norm(input_normals, axis=1))
+        vec_cos = np.clip(vec_dot/vec_mag, -1.0, 1.0) #Clipping for safety
+        ang_mask = np.arccos(vec_cos) < angle_diff 
+
+
+        return (dist_mask & ang_mask)
         return np.zeros((len(points)))
 
     def fuse(self,

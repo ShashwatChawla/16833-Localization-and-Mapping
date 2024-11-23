@@ -71,15 +71,6 @@ def find_projective_correspondence(source_points,
     # Apply distance thresholding (row-wise):
     delta_distances = np.linalg.norm(T_source_points - target_points_q, axis=1) 
     mask = (delta_distances < dist_diff)
-
-    # TODO(@Shashwat): Is this necessary for the assingment: 
-    # Apply angle-thrsholding (.dot < cos(th))
-    # cosine_angles = np.sum(source_normals * target_normals_q, axis=1) / (
-    # np.linalg.norm(source_normals, axis=1) * np.linalg.norm(target_normals_q, axis=1)
-    # )
-
-    # mask &= np.arccos(cosine_angles) < 0.1
-
     # End of TODO
 
     source_indices = source_indices[mask]
@@ -120,6 +111,7 @@ def build_linear_system(source_points, target_points, target_normals, T):
         b[idx] = np.dot(n_q[idx].T, (p_prime[idx] - q[idx]))
     # End of TODO
 
+    # Formulated as Ax + b | Solver is for Ax - b
     return A, -b
 
 
