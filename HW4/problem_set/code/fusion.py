@@ -269,6 +269,7 @@ if __name__ == '__main__':
     intrinsic /= down_factor
     intrinsic[2, 2] = 1
 
+    total_pts = 1
     for i in range(args.start_idx, args.end_idx + 1):
         print('Fusing frame {:03d}'.format(i))
         source_depth = o3d.io.read_image('{}/{}.png'.format(depth_path, i))
@@ -284,11 +285,16 @@ if __name__ == '__main__':
         source_normal_map = np.load('{}/{}.npy'.format(normal_path, i))
         source_normal_map = source_normal_map[::down_factor, ::down_factor]
 
+        # Added to calculate compression
+        total_pts += source_vertex_map.shape[0]*source_vertex_map.shape[1]
+        
         m.fuse(source_vertex_map, source_normal_map, source_color_map,
                intrinsic, gt_poses[i])
-
+        
     global_pcd = o3d_utility.make_point_cloud(m.points,
                                               colors=m.colors,
                                               normals=m.normals)
     o3d.visualization.draw_geometries(
         [global_pcd.transform(o3d_utility.flip_transform)])
+
+    print(f"Compression :{total_pts/len(m.points)}")
